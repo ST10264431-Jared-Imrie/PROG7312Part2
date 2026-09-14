@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="SmartX.API/SmartX.API.csproj" />
+  <Project Path="SmartX.Dashboard/SmartX.Dashboard.csproj" />
+</Solution>

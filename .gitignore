@@ -1,0 +1,16 @@
+## Visual Studio / .NET Build Artifacts
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Uploaded Files & Temporary Logs
+SmartX.API/UploadedLogs/*
+!SmartX.API/UploadedLogs/.gitkeep
+*.log
+
+## OS / IDE
+.DS_Store
+Thumbs.db

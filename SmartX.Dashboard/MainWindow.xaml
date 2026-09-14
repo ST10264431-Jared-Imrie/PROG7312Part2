@@ -1,0 +1,287 @@
+<Window x:Class="SmartX.Dashboard.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SmartX-IoT-Mesh Gateway Control Console" Height="780" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#0F172A" Foreground="#F8FAFC"
+        FontFamily="Segoe UI, Roboto, sans-serif">
+    
+    <Window.Resources>
+        <!-- Custom Button Style for Top 3-Pillar Menu -->
+        <Style x:Key="PillarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#334155"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#0F172A"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#1E293B"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="Opacity" Value="0.6"/>
+                                <Setter Property="Cursor" Value="No"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Active Pillar Highlight Style -->
+        <Style x:Key="ActivePillarButtonStyle" BasedOn="{StaticResource PillarButtonStyle}" TargetType="Button">
+            <Setter Property="Background" Value="#1E40AF"/>
+            <Setter Property="BorderBrush" Value="#60A5FA"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <!-- Primary Action Button -->
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1D4ED8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1E40AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Form Label Style -->
+        <Style x:Key="FormLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+
+        <!-- Form Input TextBox Style -->
+        <Style x:Key="FormTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="#0F172A"/>
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="CaretBrush" Value="#3B82F6"/>
+        </Style>
+
+        <!-- Form ComboBox Style -->
+        <Style x:Key="FormComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#0F172A"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Top Header & Navigation -->
+            <RowDefinition Height="*"/>    <!-- Main Dashboard Content -->
+        </Grid.RowDefinitions>
+
+        <!-- HEADER & 3-PILLAR MENU BAR -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <!-- Header Title & User Session Bar -->
+            <DockPanel Margin="0,0,0,16">
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="SmartX-IoT-Mesh Edge Gateway" FontSize="22" FontWeight="Bold" Foreground="#F8FAFC"/>
+                    <TextBlock Text="Autonomous Telemetry Ingestion &amp; Spatial Node Heatmap" FontSize="12" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Border Background="#1E293B" CornerRadius="20" Padding="12,6" BorderBrush="#334155" BorderThickness="1" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="#10B981" Margin="0,0,6,0"/>
+                            <TextBlock Text="API Endpoint: Ready (http://localhost:5000)" FontSize="11" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#1E293B" CornerRadius="20" Padding="12,6" BorderBrush="#334155" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="👤 admin@smartx.io" FontSize="11" FontWeight="SemiBold" Foreground="#60A5FA" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <Button Content="Logout" Click="LogoutButton_Click" Background="#EF4444" Foreground="#FFFFFF" 
+                                    FontSize="10" FontWeight="Bold" Padding="10,4" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="10"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+
+            <!-- 3-Pillar Menu Bar -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Pillar 1: Enabled -->
+                <Button Grid.Column="0" Content="1. Sensor Data Ingestion and Telemetry" 
+                        IsEnabled="True" Style="{StaticResource ActivePillarButtonStyle}" Margin="0,0,6,0"/>
+                
+                <!-- Pillar 2: Disabled (Grayed Out) -->
+                <Button Grid.Column="1" Content="2. Real-Time Command Stream and History" 
+                        IsEnabled="False" Style="{StaticResource PillarButtonStyle}" Margin="3,0,3,0"/>
+                
+                <!-- Pillar 3: Disabled (Grayed Out) -->
+                <Button Grid.Column="2" Content="3. Network Topology and Mesh Routing" 
+                        IsEnabled="False" Style="{StaticResource PillarButtonStyle}" Margin="6,0,0,0"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- MAIN DASHBOARD CONTENT AREA -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420"/> <!-- Left: Form Input Panel -->
+                <ColumnDefinition Width="*"/>   <!-- Right: Dynamic Heatmap & Console -->
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: PAYLOAD FORM PANEL -->
+            <Border Grid.Column="0" Background="#1E293B" CornerRadius="12" BorderBrush="#334155" BorderThickness="1" Padding="20" Margin="0,0,16,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Telemetry Dispatch Form" FontSize="16" FontWeight="Bold" Foreground="#F8FAFC" Margin="0,0,0,12"/>
+                        <Rectangle Height="1" Fill="#334155" Margin="0,0,0,16"/>
+
+                        <!-- MAC Address -->
+                        <TextBlock Text="MAC ADDRESS" Style="{StaticResource FormLabelStyle}"/>
+                        <TextBox x:Name="MacAddressTextBox" Text="00:1A:2C:3F:4E:56" Style="{StaticResource FormTextBoxStyle}"/>
+
+                        <!-- Location -->
+                        <TextBlock Text="DEPLOYMENT LOCATION / ZONE" Style="{StaticResource FormLabelStyle}"/>
+                        <TextBox x:Name="LocationTextBox" Text="Sector-7 / Substation-B" Style="{StaticResource FormTextBoxStyle}"/>
+
+                        <!-- Category ComboBox -->
+                        <TextBlock Text="TELEMETRY CATEGORY" Style="{StaticResource FormLabelStyle}"/>
+                        <ComboBox x:Name="CategoryComboBox" SelectedIndex="0" Style="{StaticResource FormComboBoxStyle}">
+                            <ComboBoxItem Content="Environmental"/>
+                            <ComboBoxItem Content="Power"/>
+                            <ComboBoxItem Content="Actuator"/>
+                        </ComboBox>
+
+                        <!-- Telemetry Value -->
+                        <TextBlock Text="PAYLOAD VALUE (NUMERIC THRESHOLD)" Style="{StaticResource FormLabelStyle}"/>
+                        <TextBox x:Name="TelemetryValueTextBox" Text="45.50" Style="{StaticResource FormTextBoxStyle}"/>
+
+                        <!-- File Attachment Section -->
+                        <TextBlock Text="DIAGNOSTIC LOG / PHOTO ATTACHMENT" Style="{StaticResource FormLabelStyle}"/>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="AttachLogButton" Grid.Column="0" Content="Attach Log/Photo" 
+                                    Click="AttachLogButton_Click"
+                                    Background="#334155" Foreground="#F8FAFC" FontSize="12" 
+                                    Padding="12,8" BorderThickness="0" Cursor="Hand"/>
+                            <TextBlock x:Name="AttachedFileTextBlock" Grid.Column="1" 
+                                       Text="No file attached" VerticalAlignment="Center" 
+                                       Margin="10,0,0,0" Foreground="#94A3B8" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                        </Grid>
+
+                        <!-- Submit Button -->
+                        <Button x:Name="SubmitButton" Content="🚀 Submit Telemetry Data" 
+                                Click="SubmitButton_Click" Style="{StaticResource PrimaryActionButtonStyle}" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- RIGHT: DYNAMIC ENGAGEMENT HEATMAP & CONSOLE -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Dynamic Engagement Heatmap Card -->
+                    <RowDefinition Height="*"/>    <!-- API Response & Stream Log Console -->
+                </Grid.RowDefinitions>
+
+                <!-- DYNAMIC ENGAGEMENT HEATMAP COMPONENT -->
+                <Border Grid.Row="0" x:Name="StatusHeatmapBorder" Background="#10B981" CornerRadius="12" Padding="24" Margin="0,0,0,16">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="#10B981" Opacity="0.3"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Status Icon Indicator -->
+                        <Border Grid.Column="0" Width="60" Height="60" CornerRadius="30" Background="#FFFFFF" Opacity="0.2" Margin="0,0,20,0">
+                            <TextBlock x:Name="StatusIconTextBlock" Text="✓" FontSize="32" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Status Text Details -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="DYNAMIC ENGAGEMENT HEATMAP STATUS" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" Opacity="0.8"/>
+                            <TextBlock x:Name="StatusHeaderTextBlock" Text="GREEN_NORMAL (NOMINAL OPERATIONAL RANGE)" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,2,0,2"/>
+                            <TextBlock x:Name="StatusDetailTextBlock" Text="Gateway node operating within safe boundaries. Value threshold below 80.0 limit." FontSize="13" Foreground="#FFFFFF" Opacity="0.9"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- RESPONSE LOG & STREAM CONSOLE -->
+                <Border Grid.Row="1" Background="#1E293B" CornerRadius="12" BorderBrush="#334155" BorderThickness="1" Padding="20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="API Dispatch Console &amp; Sensor Log Response" FontSize="14" FontWeight="Bold" Foreground="#F8FAFC"/>
+                            <Button Content="Clear Console" HorizontalAlignment="Right" Click="ClearConsole_Click"
+                                    Background="Transparent" Foreground="#94A3B8" FontSize="11" BorderThickness="0" Cursor="Hand"/>
+                        </DockPanel>
+
+                        <!-- Output Log Box -->
+                        <TextBox Grid.Row="1" x:Name="ConsoleLogTextBox" IsReadOnly="True" 
+                                 Background="#0F172A" Foreground="#38BDF8" BorderBrush="#334155" BorderThickness="1"
+                                 Padding="12" FontFamily="Consolas, Cascadia Code, monospace" FontSize="12"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="Wrap"
+                                 Text="[READY] SmartX Gateway Client Initialized. Awaiting telemetry dispatch...&#x0a;"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
