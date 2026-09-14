@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  smartx-api:
+    build:
+      context: ./SmartX.API
+      dockerfile: Dockerfile
+    container_name: smartx-iot-api
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+    volumes:
+      - ./SmartX.API/UploadedLogs:/app/UploadedLogs
+    restart: always
