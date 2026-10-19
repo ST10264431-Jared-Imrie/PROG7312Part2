@@ -5,8 +5,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SmartX.API.Models;
+using SmartX.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Register Core Advanced Data Structure Services (Singletons for in-memory live state)
+builder.Services.AddSingleton<IDeviceStateService, DeviceStateService>();
+builder.Services.AddSingleton<IPredictiveEngineService, PredictiveEngineService>();
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
@@ -14,9 +19,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
     {
-        Title = "SmartX-IoT-Mesh Gateway API",
-        Version = "v1",
-        Description = "Edge Data Ingestion & Telemetry Minimal API Endpoint"
+        Title = "SmartX-IoT-Mesh Gateway API (Part 2)",
+        Version = "v2",
+        Description = "Real-Time Processing Engine & Advanced Data Structure Gateway (Queues, Stacks, Priority Queues, Dictionaries, Sets)"
     });
 });
 
@@ -33,52 +38,34 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// Configure HTTP pipeline
 app.UseCors();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartX API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartX API v2");
     c.RoutePrefix = "swagger";
 });
 
-// ------------------------------------------------------------------
-// ENDPOINT 1: POST /api/telemetry
-// Accepts TelemetryPacket<double> and evaluates alert thresholds
-// ------------------------------------------------------------------
-app.MapPost("/api/telemetry", (TelemetryPacket<double> packet) =>
+// ==================================================================
+// PILLAR 1: SENSOR DATA INGESTION & TELEMETRY
+// ==================================================================
+
+// POST /api/telemetry: Ingests packet via FIFO queue or Priority Queue
+app.MapPost("/api/telemetry", (TelemetryPacket<double> packet, IDeviceStateService deviceService) =>
 {
     if (packet == null)
     {
         return Results.BadRequest(new { Status = "ERROR", Message = "Telemetry packet cannot be null." });
     }
 
-    // Dynamic Visual State Evaluation: RED_ALERT if value > 80.0 else GREEN_NORMAL
-    string visualState = packet.PayloadValue > 80.0 ? "RED_ALERT" : "GREEN_NORMAL";
-    string alertMsg = visualState == "RED_ALERT" 
-        ? $"CRITICAL ALERT: Reading {packet.PayloadValue:F2} exceeds 80.0 threshold on node {packet.MacAddress}."
-        : $"NORMAL OPERATION: Reading {packet.PayloadValue:F2} within nominal range on node {packet.MacAddress}.";
-
-    var response = new TelemetryResponse
-    {
-        Status = "SUCCESS",
-        VisualState = visualState,
-        MacAddress = packet.MacAddress,
-        Location = packet.Location,
-        Category = packet.Category,
-        Value = packet.PayloadValue,
-        ProcessedAt = DateTime.UtcNow,
-        Message = alertMsg
-    };
-
+    // Ingest into Advanced Data Structures (FIFO Queue or Priority Alert Queue bypass)
+    TelemetryResponse response = deviceService.EnqueueTelemetry(packet);
     return Results.Ok(response);
 })
 .WithName("SubmitTelemetry");
 
-// ------------------------------------------------------------------
-// ENDPOINT 2: POST /api/sensors/{mac}/upload-log
-// Handles multipart file uploads (IFormFile) saving to UploadedLogs
-// ------------------------------------------------------------------
+// POST /api/sensors/{mac}/upload-log: Multipart file/photo upload
 app.MapPost("/api/sensors/{mac}/upload-log", async (string mac, IFormFile file, IWebHostEnvironment env) =>
 {
     if (file == null || file.Length == 0)
@@ -86,14 +73,12 @@ app.MapPost("/api/sensors/{mac}/upload-log", async (string mac, IFormFile file, 
         return Results.BadRequest(new { Status = "ERROR", Message = "No file attached or file is empty." });
     }
 
-    // Ensure UploadedLogs directory exists
     string uploadDir = Path.Combine(env.ContentRootPath, "UploadedLogs");
     if (!Directory.Exists(uploadDir))
     {
         Directory.CreateDirectory(uploadDir);
     }
 
-    // Sanitize and construct safe file path
     string safeMac = mac.Replace(":", "-").Replace("/", "_");
     string timestampPrefix = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
     string safeFileName = $"{safeMac}_{timestampPrefix}_{Path.GetFileName(file.FileName)}";
@@ -116,6 +101,175 @@ app.MapPost("/api/sensors/{mac}/upload-log", async (string mac, IFormFile file, 
     });
 })
 .WithName("UploadSensorLog")
-.DisableAntiforgery(); // Permissive for API file uploads
+.DisableAntiforgery();
+
+// ==================================================================
+// PILLAR 2: REAL-TIME COMMAND STREAM & HISTORY (PART 2 CORE)
+// ==================================================================
+
+// GET /api/devices: Fetch live registered devices from Dictionary<string, LiveDevice> with search/filter
+app.MapGet("/api/devices", (string? category, string? status, string? search, IDeviceStateService deviceService) =>
+{
+    var devices = deviceService.GetAllDevices(category, status, search);
+    return Results.Ok(devices);
+})
+.WithName("GetLiveDevices");
+
+// GET /api/devices/{mac}: Instantaneous O(1) Dictionary lookup
+app.MapGet("/api/devices/{mac}", (string mac, IDeviceStateService deviceService) =>
+{
+    var device = deviceService.GetDevice(mac);
+    return device != null ? Results.Ok(device) : Results.NotFound(new { Message = $"Device with MAC {mac} not found in registry." });
+})
+.WithName("GetDeviceByMac");
+
+// POST /api/devices: Register new device into Dictionary
+app.MapPost("/api/devices", (LiveDevice device, IDeviceStateService deviceService) =>
+{
+    if (device == null || string.IsNullOrWhiteSpace(device.MacAddress))
+    {
+        return Results.BadRequest(new { Message = "Device and MAC address are required." });
+    }
+    deviceService.RegisterDevice(device);
+    return Results.Created($"/api/devices/{device.MacAddress}", device);
+})
+.WithName("RegisterDevice");
+
+// POST /api/commands: Manual override command (Pushes to Stack<DeviceCommand>)
+app.MapPost("/api/commands", (DeviceCommand command, IDeviceStateService deviceService, IPredictiveEngineService predictiveService) =>
+{
+    if (command == null || string.IsNullOrWhiteSpace(command.MacAddress) || string.IsNullOrWhiteSpace(command.ActionType))
+    {
+        return Results.BadRequest(new { Message = "Command requires valid MAC Address and ActionType." });
+    }
+
+    var executed = deviceService.ExecuteCommand(command);
+    predictiveService.RecordCommandExecution(executed);
+
+    return Results.Ok(new
+    {
+        Status = "SUCCESS",
+        Message = $"Command '{executed.ActionType}' ({executed.Parameter}) executed successfully on {executed.TargetDeviceName}.",
+        Command = executed
+    });
+})
+.WithName("ExecuteCommand");
+
+// POST /api/commands/undo: Reverts the last command from Stack<DeviceCommand>
+app.MapPost("/api/commands/undo", (IDeviceStateService deviceService) =>
+{
+    var undone = deviceService.UndoLastCommand();
+    if (undone == null)
+    {
+        return Results.NotFound(new { Status = "EMPTY_STACK", Message = "No previous commands available on the undo stack to revert." });
+    }
+
+    return Results.Ok(new
+    {
+        Status = "SUCCESS",
+        Message = $"Reverted last command on {undone.TargetDeviceName}. New state restored to {undone.Parameter}.",
+        UndoneCommand = undone
+    });
+})
+.WithName("UndoCommand");
+
+// GET /api/commands/history: Inspect command stack
+app.MapGet("/api/commands/history", (IDeviceStateService deviceService) =>
+{
+    return Results.Ok(deviceService.GetCommandHistory());
+})
+.WithName("GetCommandHistory");
+
+// GET /api/telemetry/queue-status: Real-time status of all 5 data structures
+app.MapGet("/api/telemetry/queue-status", (IDeviceStateService deviceService) =>
+{
+    return Results.Ok(deviceService.GetQueueStatus());
+})
+.WithName("GetQueueStatus");
+
+// POST /api/telemetry/simulate-alert: Lecturer testing endpoint for Priority Queue Bypass
+app.MapPost("/api/telemetry/simulate-alert", (SimulateAlertRequest req, IDeviceStateService deviceService) =>
+{
+    deviceService.SimulateHighPriorityAlert(
+        req.MacAddress ?? "12:34:56:78:9A:BC",
+        req.AlertType ?? "POWER_SPIKE",
+        req.Value > 0 ? req.Value : 4850.0,
+        req.Message ?? "CRITICAL VOLTAGE SPIKE: Substation transformer surge detected. Immediate priority queue bypass triggered!"
+    );
+
+    return Results.Ok(new
+    {
+        Status = "PRIORITY_ALERT_QUEUED",
+        Message = "High-priority alert successfully bypassed standard FIFO queue and updated device state.",
+        QueueStatus = deviceService.GetQueueStatus()
+    });
+})
+.WithName("SimulateAlert");
+
+// GET /api/telemetry/timeline: Fetch chronologically sorted logs from SortedDictionary
+app.MapGet("/api/telemetry/timeline", (int? limit, IDeviceStateService deviceService) =>
+{
+    var timeline = deviceService.GetTimelineLogs(limit ?? 50);
+    return Results.Ok(timeline);
+})
+.WithName("GetTimeline");
+
+// GET /api/errors/active: Fetch unique active error states from HashSet
+app.MapGet("/api/errors/active", (IDeviceStateService deviceService) =>
+{
+    return Results.Ok(deviceService.GetActiveErrors());
+})
+.WithName("GetActiveErrors");
+
+// POST /api/errors/resolve: Resolve an error from HashSet
+app.MapPost("/api/errors/resolve", (ResolveErrorRequest req, IDeviceStateService deviceService) =>
+{
+    bool removed = deviceService.ResolveError(req.ErrorKey);
+    return Results.Ok(new { Success = removed, ErrorKey = req.ErrorKey });
+})
+.WithName("ResolveError");
+
+// ==================================================================
+// PREDICTIVE ACTION & RECOMMENDATION ENGINE
+// ==================================================================
+
+// GET /api/predictive/insights: Proactive suggestions
+app.MapGet("/api/predictive/insights", (IDeviceStateService deviceService, IPredictiveEngineService predictiveService) =>
+{
+    var insights = predictiveService.GetCurrentInsights(deviceService);
+    return Results.Ok(insights);
+})
+.WithName("GetPredictiveInsights");
+
+// POST /api/predictive/record-search: Pattern learning from user queries
+app.MapPost("/api/predictive/record-search", (RecordSearchRequest req, IPredictiveEngineService predictiveService) =>
+{
+    predictiveService.RecordUserSearch(req.SearchTerm ?? string.Empty, req.Category ?? "All", req.AlertState ?? "All");
+    return Results.Ok(new { Status = "RECORDED" });
+})
+.WithName("RecordSearch");
+
+// POST /api/predictive/execute-suggestion/{id}: One-click execution of automated recommendation
+app.MapPost("/api/predictive/execute-suggestion/{id}", (string id, IDeviceStateService deviceService, IPredictiveEngineService predictiveService) =>
+{
+    var executed = predictiveService.ExecuteSuggestion(id, deviceService);
+    if (executed == null)
+    {
+        return Results.NotFound(new { Message = $"Suggestion with ID {id} not found or expired." });
+    }
+
+    return Results.Ok(new
+    {
+        Status = "SUCCESS",
+        Message = $"Executed automated recommendation: {executed.ActionType} ({executed.Parameter}) on {executed.TargetDeviceName}.",
+        ExecutedCommand = executed
+    });
+})
+.WithName("ExecuteSuggestion");
 
 app.Run();
+
+// DTO Helper classes for minimal API endpoints
+public record SimulateAlertRequest(string? MacAddress, string? AlertType, double Value, string? Message);
+public record ResolveErrorRequest(string ErrorKey);
+public record RecordSearchRequest(string? SearchTerm, string? Category, string? AlertState);
